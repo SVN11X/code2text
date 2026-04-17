@@ -10,7 +10,8 @@
         .container { border: 2px dashed #ccc; padding: 2rem; text-align: center; border-radius: 10px; }
         #status { margin-top: 1rem; color: #555; font-size: 0.9rem; white-space: pre-wrap; text-align: left; }
         button { background: #2ea44f; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
-        button:disabled { background: #ccc; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .error { color: #d32f2f; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -27,108 +28,138 @@
     <div id="status"></div>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const processBtn = document.getElementById('processBtn');
-        const status = document.getElementById('status');
+        (function() {
+            "use strict";
 
-        // Configuración idéntica a tu notebook
-        const ALLOWED_EXTENSIONS = [".py", ".xml", ".yaml", ".yml", ".xacro", ".cpp", ".cc", ".h", ".hpp", ".ino", ".msg", ".srv", ".action", ".urdf", ".world", ".sh", ".cfg", ".toml", ".txt", ".md"];
-        const EXCLUDE_DIRS = ["__pycache__", ".git", ".venv", "node_modules", "z_code_file"];
+            const fileInput = document.getElementById('fileInput');
+            const processBtn = document.getElementById('processBtn');
+            const statusDiv = document.getElementById('status');
 
-        fileInput.addEventListener('change', () => {
-            processBtn.disabled = !fileInput.files.length;
-        });
+            // Configuración
+            const ALLOWED_EXTENSIONS = [
+                ".py", ".xml", ".yaml", ".yml", ".xacro", ".cpp", ".cc", ".h", ".hpp", ".ino",
+                ".msg", ".srv", ".action", ".urdf", ".world", ".sh", ".cfg", ".toml", ".txt", ".md"
+            ];
+            const EXCLUDE_DIRS = ["__pycache__", ".git", ".venv", "node_modules", "z_code_file"];
 
-        async function processZip() {
-            const file = fileInput.files[0];
-            if (!file) return;
+            fileInput.addEventListener('change', () => {
+                processBtn.disabled = !fileInput.files.length;
+            });
 
-            status.textContent = "Leyendo archivo zip...";
-            const zip = new JSZip();
-            const contents = await zip.loadAsync(file);
-            
-            let treeOutput = "src/\n";
-            let codeOutput = "<documentos_codigo>\n";
-            let fileCount = 0;
+            async function processZip() {
+                const file = fileInput.files[0];
+                if (!file) return;
 
-            // 1. Generar estructura y procesar archivos
-            for (const [path, zipEntry] of Object.entries(contents.files)) {
-                if (zipEntry.dir) continue;
+                statusDiv.textContent = "Leyendo archivo zip...";
+                processBtn.disabled = true;
 
-                // Filtrar carpetas excluidas
-                const pathParts = path.split('/');
-                if (pathParts.some(part => EXCLUDE_DIRS.includes(part))) continue;
+                try {
+                    const zip = new JSZip();
+                    const contents = await zip.loadAsync(file);
+                    
+                    let treeOutput = "src/\n";
+                    let codeOutput = "<documentos_codigo>\n";
+                    let fileCount = 0;
 
-                const ext = "." + path.split('.').pop().toLowerCase();
-                
-                // Agregar al árbol visual
-                treeOutput += `  ├─ ${path}\n`;
+                    // Procesar entradas del zip
+                    for (const [path, zipEntry] of Object.entries(contents.files)) {
+                        if (zipEntry.dir) continue;
 
-                // Si es un archivo de código permitido, procesarlo
-                if (ALLOWED_EXTENSIONS.includes(ext)) {
-                    let text = await zipEntry.async("string");
-                    const cleanText = limpiarCodigo(text, ext);
+                        // Excluir directorios no deseados
+                        const pathParts = path.split('/');
+                        if (pathParts.some(part => EXCLUDE_DIRS.includes(part))) continue;
 
-                    if (cleanText.trim()) {
-                        codeOutput += `  <archivo ruta="${path}" tipo="${ext}">\n`;
-                        codeOutput += cleanText;
-                        codeOutput += `\n  </archivo>\n`;
-                        fileCount++;
+                        // Obtener extensión en minúsculas
+                        const fileName = path.split('/').pop();
+                        const extDotIndex = fileName.lastIndexOf('.');
+                        const ext = extDotIndex >= 0 ? fileName.substring(extDotIndex).toLowerCase() : '';
+
+                        // Agregar al árbol visual
+                        treeOutput += `  ├─ ${path}\n`;
+
+                        // Si es extensión permitida, procesar contenido
+                        if (ALLOWED_EXTENSIONS.includes(ext)) {
+                            try {
+                                let text = await zipEntry.async("string");
+                                const cleanText = limpiarCodigo(text, ext);
+
+                                if (cleanText.trim()) {
+                                    codeOutput += `  <archivo ruta="${path}" tipo="${ext}">\n`;
+                                    codeOutput += cleanText;
+                                    codeOutput += `\n  </archivo>\n`;
+                                    fileCount++;
+                                }
+                            } catch (e) {
+                                console.warn(`Error al procesar ${path}:`, e);
+                                statusDiv.textContent += `\n⚠️ No se pudo leer ${path}`;
+                            }
+                        }
                     }
+
+                    codeOutput += "</documentos_codigo>";
+
+                    const finalResult = `<estructura_proyecto>\n${treeOutput}</estructura_proyecto>\n\n${codeOutput}`;
+                    
+                    downloadFile(finalResult, "000_output_full_code.txt");
+                    statusDiv.innerHTML = `✅ ¡Listo! Procesados ${fileCount} archivos.`;
+                } catch (err) {
+                    console.error(err);
+                    statusDiv.innerHTML = `<span class="error">❌ Error: ${err.message}</span>`;
+                } finally {
+                    processBtn.disabled = false;
                 }
             }
 
-            codeOutput += "</documentos_codigo>";
+            function limpiarCodigo(texto, extension) {
+                // Eliminar comentarios según tipo de archivo
+                
+                // Python (.py)
+                if (extension === ".py") {
+                    // Líneas que son solo comentarios
+                    texto = texto.replace(/^\s*#.*$/gm, "");
+                    // Docstrings triples (simplificado, puede no capturar anidados pero funciona en mayoría de casos)
+                    texto = texto.replace(/"{3}[\s\S]*?"{3}|'{3}[\s\S]*?'{3}/g, "");
+                    // Comentarios al final de línea (sin lookbehind para mayor compatibilidad)
+                    texto = texto.replace(/#[^"\n]*$/gm, "");
+                }
+                // C/C++/Arduino (.cpp, .cc, .h, .hpp, .ino)
+                else if ([".cpp", ".cc", ".h", ".hpp", ".ino"].includes(extension)) {
+                    texto = texto.replace(/\/\/.*$/gm, "");           // Comentarios de línea
+                    texto = texto.replace(/\/\*[\s\S]*?\*\//g, "");   // Comentarios de bloque
+                }
+                // XML / XACRO / URDF / World
+                else if ([".xml", ".xacro", ".urdf", ".world"].includes(extension)) {
+                    texto = texto.replace(/<!--[\s\S]*?-->/g, "");    // Comentarios XML
+                }
+                // YAML / TOML / SH / CFG
+                else if ([".yaml", ".yml", ".sh", ".toml", ".cfg"].includes(extension)) {
+                    // Eliminar líneas de comentario que empiezan con #, excepto shebang (#!)
+                    texto = texto.replace(/^(?!#!)(\s*#.*$)/gm, "");
+                }
+                // Para archivos .txt, .md no hacemos limpieza de comentarios
 
-            // 2. Consolidar resultado final siguiendo tu formato
-            const finalResult = `<estructura_proyecto>\n${treeOutput}</estructura_proyecto>\n\n${codeOutput}`;
-
-            // 3. Descargar
-            downloadFile(finalResult, "000_output_full_code.txt");
-            status.textContent = `¡Listo! Procesados ${fileCount} archivos.`;
-        }
-
-        function limpiarCodigo(texto, extension) {
-            // Replicamos la lógica de tu notebook mediante Regex
-            
-            // Python: comentarios # y docstrings
-            if (extension === ".py") {
-                texto = texto.replace(/^\s*#.*$/gm, ""); // Líneas de comentarios
-                texto = texto.replace(/"""[\s\S]*?"""|'''[\s\S]*?'''/g, ""); // Docstrings
-                texto = texto.replace(/(?<!["'])#[^"'\n]*$/gm, ""); // Comentarios al final de línea
+                // Limpieza común: quitar espacios al final de línea y reducir líneas vacías múltiples
+                return texto.split('\n')
+                            .map(line => line.trimEnd())
+                            .join('\n')
+                            .replace(/\n{3,}/g, '\n\n')
+                            .trim();
             }
-            // C++/Arduino/Java: // y /* */
-            else if ([".cpp", ".cc", ".h", ".hpp", ".ino"].includes(extension)) {
-                texto = texto.replace(/\/\/.*$/gm, "");
-                texto = texto.replace(/\/\*[\s\S]*?\*\//g, "");
-            }
-            // XML/XACRO/URDF: else if ([".xml", ".xacro", ".urdf", ".world"].includes(extension)) {
-                texto = texto.replace(//g, "");
-            }
-            // YAML/TOML/SH: comentarios #
-            else if ([".yaml", ".yml", ".sh", ".toml", ".cfg"].includes(extension)) {
-                texto = texto.replace(/^(?!#!)(\s*#.*$)/gm, "");
+
+            function downloadFile(content, fileName) {
+                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
 
-            // Limpieza común: eliminar líneas en blanco excesivas
-            return texto.split('\n')
-                        .map(line => line.trimEnd())
-                        .join('\n')
-                        .replace(/\n{3,}/g, '\n\n')
-                        .trim();
-        }
-
-        function downloadFile(content, fileName) {
-            const blob = new Blob([content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        processBtn.addEventListener('click', processZip);
+            processBtn.addEventListener('click', processZip);
+        })();
     </script>
 </body>
 </html>
