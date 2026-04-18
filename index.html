@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code2Text · Dark Edition + Guía de formatos</title>
+    <title>Code2Text · Modo Texto Universal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
@@ -41,7 +41,7 @@
             margin-bottom: 1.5rem;
         }
 
-        /* Panel de formatos admitidos (ahora al fondo) */
+        /* Panel de formatos (informativo) */
         .formats-panel {
             background: #11161e;
             border-radius: 20px;
@@ -283,6 +283,16 @@
             flex-shrink: 0;
         }
 
+        .file-item.binary {
+            opacity: 0.6;
+        }
+
+        .file-item .binary-tag {
+            background: #5e3a3a;
+            color: #f4a2a2;
+            margin-left: 8px;
+        }
+
         .file-item:hover {
             background: #1b2533;
         }
@@ -337,12 +347,18 @@
             background: #475569;
             border-radius: 8px;
         }
+
+        .info-note {
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            color: #8fa6c2;
+        }
     </style>
 </head>
 <body>
 
-<h2>🧠 Code2Text · Dark Mode + Guía de formatos</h2>
-<p>Sube un archivo <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code>. Visualiza qué archivos se incluirán y luego genera el TXT optimizado.</p>
+<h2>🧠 Code2Text · Universal Text Extractor</h2>
+<p>Sube un archivo <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code>. Se extraerá todo archivo de texto (código, config, docs) ignorando binarios. Ideal para LLMs.</p>
 
 <div class="dropzone">
     <label class="file-label" for="fileInput">
@@ -352,7 +368,7 @@
     <div id="fileNameDisplay" class="file-name">Ningún archivo seleccionado</div>
 </div>
 
-<!-- Panel de vista previa de archivos dentro del ZIP -->
+<!-- Panel de vista previa -->
 <div id="previewPanel" class="preview-panel" style="display: none;">
     <div class="search-header">
         <div class="search-box">
@@ -362,6 +378,7 @@
         <div class="file-stats" id="fileStats">0 archivos</div>
     </div>
     <div id="fileListContainer" class="file-list"></div>
+    <div class="info-note" id="binaryNote"></div>
 </div>
 
 <div class="actions">
@@ -372,18 +389,19 @@
     <span style="opacity:0.7;">✨ Listo para procesar...</span>
 </div>
 
-<!-- Panel de formatos admitidos (AHORA AL FONDO DE TODO) -->
+<!-- Panel informativo de formatos (al final, solo como referencia) -->
 <div class="formats-panel">
     <div class="formats-header">
         <div class="formats-search">
-            <span style="margin-right:6px;">🔎</span>
-            <input type="text" id="formatsSearchInput" placeholder="Filtrar extensiones o nombres especiales..." autocomplete="off">
+            <span style="margin-right:6px;">📋</span>
+            <input type="text" id="formatsSearchInput" placeholder="Buscar extensión de ejemplo..." autocomplete="off">
         </div>
-        <div class="formats-stats" id="formatsStats">0 formatos</div>
+        <div class="formats-stats" id="formatsStats">Extensiones comunes</div>
     </div>
     <div id="chipsContainer" class="chips-container">
-        <!-- se llenará dinámicamente (vacío inicial con mensaje) -->
+        <!-- chips de extensiones comunes (solo referencia) -->
     </div>
+    <div class="info-note">✅ Se procesan automáticamente todos los archivos de texto. Arriba solo ejemplos.</div>
 </div>
 
 <script>
@@ -399,135 +417,110 @@
         const searchInput = document.getElementById('searchInput');
         const fileStats = document.getElementById('fileStats');
         const fileListContainer = document.getElementById('fileListContainer');
+        const binaryNote = document.getElementById('binaryNote');
 
-        // Formatos admitidos
+        // Panel informativo
         const formatsSearchInput = document.getElementById('formatsSearchInput');
         const formatsStats = document.getElementById('formatsStats');
         const chipsContainer = document.getElementById('chipsContainer');
 
-        // ----- Estado global -----
+        // ----- Estado -----
         let currentZipFile = null;
-        let allowedFilesList = [];
-        let filteredFiles = [];
+        let allFilesInfo = [];               // { path, isText, size }
+        let filteredFilesInfo = [];
+        let textFilePaths = [];              // solo rutas de archivos de texto
 
-        // ----- CONFIGURACIÓN -----
-        const ALLOWED_EXTENSIONS = [
-            ".py", ".pyw", ".ipynb", ".pyx", ".pxd", ".pxi",
-            ".cpp", ".cc", ".cxx", ".c++", ".c", ".h", ".hpp", ".hxx", ".ino", ".pde",
-            ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".jsonc", ".html", ".htm", ".css", ".scss", ".sass", ".less",
-            ".xml", ".xacro", ".urdf", ".sdf", ".world", ".launch", ".yaml", ".yml", ".toml", ".cfg", ".conf", ".ini",
-            ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd",
-            ".txt", ".md", ".markdown", ".rst", ".tex",
-            ".rs", ".go", ".java", ".kt", ".kts", ".swift", ".php", ".rb", ".lua", ".r", ".jl",
-            ".msg", ".srv", ".action",
-            ".cmake", ".mk",
-            "dockerfile", ".dockerignore"
-        ];
-
-        const SPECIAL_FILENAMES = new Set([
-            "dockerfile", "makefile", "cmakelists.txt", "jenkinsfile", "vagrantfile", "gemfile", "rakefile", "procfile"
-        ]);
-
+        // ----- Configuración de exclusión -----
         const EXCLUDE_DIRS = new Set([
             "__pycache__", ".git", ".venv", "venv", "env", ".env", "node_modules", 
             "z_code_file", "build", "dist", ".idea", ".vscode", "target", "out"
         ]);
 
-        // ----- Poblar chips de formatos admitidos (comportamiento corregido) -----
-        function buildFormatList() {
-            const allFormats = [...ALLOWED_EXTENSIONS];
-            SPECIAL_FILENAMES.forEach(name => {
-                if (!allFormats.includes(name)) allFormats.push(name);
-            });
-            return allFormats.sort((a,b) => a.localeCompare(b));
+        // Extensiones de ejemplo para el panel informativo (solo visual)
+        const EXAMPLE_EXTENSIONS = [
+            ".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".go", ".rs", ".php",
+            ".html", ".css", ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg",
+            ".sh", ".bash", ".ps1", ".bat", ".txt", ".md", ".rst", ".tex",
+            "Dockerfile", "Makefile", ".gitignore", ".dockerignore"
+        ].sort();
+
+        // ----- Utilidad: detectar si un Uint8Array es texto (no binario) -----
+        function isTextData(uint8Array) {
+            // Un archivo se considera texto si menos del 5% de los primeros 8000 bytes son caracteres de control no comunes
+            const sampleSize = Math.min(uint8Array.length, 8000);
+            let controlCount = 0;
+            for (let i = 0; i < sampleSize; i++) {
+                const byte = uint8Array[i];
+                // Caracteres de control excepto: tab(9), newline(10), carriage return(13)
+                if (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) {
+                    controlCount++;
+                }
+                // Si es 0 (nulo) es muy probable binario
+                if (byte === 0) {
+                    return false;
+                }
+            }
+            // Si más del 5% son caracteres de control extraños -> binario
+            return (controlCount / sampleSize) < 0.05;
         }
 
-        const masterFormatList = buildFormatList();
-        const TOTAL_FORMATS = masterFormatList.length;
-
-        function renderFormatChips(filterText = '') {
-            const query = filterText.trim().toLowerCase();
-            
-            // Si el campo está vacío: mostrar mensaje y el total de formatos
-            if (query === '') {
-                chipsContainer.innerHTML = '<div class="no-files" style="width:100%;">✏️ Escribe para buscar entre los formatos admitidos...</div>';
-                formatsStats.textContent = `${TOTAL_FORMATS} formatos`;
-                return;
-            }
-            
-            const filtered = masterFormatList.filter(f => f.toLowerCase().includes(query));
-            formatsStats.textContent = `${filtered.length} / ${TOTAL_FORMATS} formatos`;
-            
-            if (filtered.length === 0) {
-                chipsContainer.innerHTML = '<div class="no-files" style="width:100%;">🔍 Ningún formato coincide</div>';
-                return;
-            }
-            
-            let html = '';
-            for (const fmt of filtered) {
-                const isSpecial = SPECIAL_FILENAMES.has(fmt.toLowerCase()) || fmt.toLowerCase() === 'dockerfile';
-                const chipClass = isSpecial ? 'chip special' : 'chip';
-                html += `<span class="${chipClass}">${fmt}</span>`;
-            }
-            chipsContainer.innerHTML = html;
-        }
-
-        // Inicializar chips con mensaje y total
-        renderFormatChips('');
-
-        // Filtrar chips al escribir
-        formatsSearchInput.addEventListener('input', (e) => {
-            renderFormatChips(e.target.value);
-        });
-
-        // ----- Función para decidir si un archivo debe procesarse -----
-        function shouldProcessFile(path, fileName) {
-            const lowerName = fileName.toLowerCase();
-            if (SPECIAL_FILENAMES.has(lowerName)) return true;
-            
-            const extDot = lowerName.lastIndexOf('.');
-            const ext = extDot >= 0 ? lowerName.substring(extDot) : '';
-            
-            if (ALLOWED_EXTENSIONS.includes(ext)) return true;
-            if (lowerName === 'dockerfile' || lowerName === 'makefile' || lowerName === 'jenkinsfile') return true;
-            
-            return false;
-        }
-
-        // ----- Escanear ZIP y actualizar vista previa -----
+        // ----- Escanear ZIP (detección automática de texto) -----
         async function scanZipAndPreview(file) {
             previewPanel.style.display = 'block';
             fileListContainer.innerHTML = '<div class="no-files">🔎 Escaneando archivos...</div>';
             fileStats.textContent = '0 archivos';
-            allowedFilesList = [];
+            binaryNote.textContent = '';
+            allFilesInfo = [];
+            textFilePaths = [];
             
             try {
                 const zip = new JSZip();
                 const contents = await zip.loadAsync(file);
                 const entries = Object.entries(contents.files);
                 
-                const tempAllowed = [];
+                const tempInfo = [];
                 
                 for (const [path, zipEntry] of entries) {
                     if (zipEntry.dir) continue;
                     
+                    // Excluir directorios no deseados
                     const pathParts = path.split('/');
                     if (pathParts.some(part => EXCLUDE_DIRS.has(part))) continue;
                     
-                    const fileName = pathParts.pop() || '';
-                    
-                    if (shouldProcessFile(path, fileName)) {
-                        tempAllowed.push(path);
+                    try {
+                        // Obtener datos como Uint8Array para análisis
+                        const data = await zipEntry.async("uint8array");
+                        const isText = isTextData(data);
+                        const size = data.length;
+                        
+                        tempInfo.push({
+                            path: path,
+                            isText: isText,
+                            size: size
+                        });
+                        
+                        if (isText) {
+                            textFilePaths.push(path);
+                        }
+                    } catch (e) {
+                        console.warn(`No se pudo leer ${path}`, e);
                     }
                 }
                 
-                allowedFilesList = tempAllowed.sort((a,b) => a.localeCompare(b));
+                allFilesInfo = tempInfo.sort((a,b) => a.path.localeCompare(b.path));
+                textFilePaths.sort();
+                
+                // Actualizar contador
+                const totalText = allFilesInfo.filter(f => f.isText).length;
+                const totalBinary = allFilesInfo.length - totalText;
+                binaryNote.textContent = `📄 ${totalText} archivos de texto · 🚫 ${totalBinary} binarios omitidos`;
+                
                 filterAndRenderList();
                 
             } catch (err) {
                 console.error('Error al escanear zip:', err);
                 fileListContainer.innerHTML = `<div class="no-files error">Error al leer el ZIP: ${err.message}</div>`;
-                allowedFilesList = [];
+                allFilesInfo = [];
                 filterAndRenderList();
             }
         }
@@ -535,34 +528,41 @@
         function filterAndRenderList() {
             const query = searchInput.value.trim().toLowerCase();
             if (query === '') {
-                filteredFiles = [...allowedFilesList];
+                filteredFilesInfo = [...allFilesInfo];
             } else {
-                filteredFiles = allowedFilesList.filter(p => p.toLowerCase().includes(query));
+                filteredFilesInfo = allFilesInfo.filter(f => f.path.toLowerCase().includes(query));
             }
             
-            fileStats.textContent = `${filteredFiles.length} / ${allowedFilesList.length} archivos`;
+            const shown = filteredFilesInfo.length;
+            const total = allFilesInfo.length;
+            fileStats.textContent = `${shown} / ${total} archivos`;
             
-            if (filteredFiles.length === 0) {
-                if (allowedFilesList.length === 0) {
-                    fileListContainer.innerHTML = '<div class="no-files">📭 No se encontraron archivos permitidos en el ZIP.</div>';
-                } else {
-                    fileListContainer.innerHTML = '<div class="no-files">🔍 Ningún archivo coincide con la búsqueda.</div>';
-                }
+            if (filteredFilesInfo.length === 0) {
+                fileListContainer.innerHTML = '<div class="no-files">🔍 Ningún archivo coincide con la búsqueda.</div>';
                 return;
             }
             
             let html = '';
-            for (const path of filteredFiles) {
-                const fileName = path.split('/').pop() || path;
+            for (const info of filteredFilesInfo) {
+                const fileName = info.path.split('/').pop() || info.path;
                 const extMatch = fileName.match(/\.([^.]+)$/);
                 const ext = extMatch ? '.' + extMatch[1].toLowerCase() : '';
                 const displayExt = ext || '(sin ext)';
-                html += `<div class="file-item"><span style="flex:1;">📄 ${path}</span><span class="ext-badge">${displayExt}</span></div>`;
+                const sizeKB = (info.size / 1024).toFixed(1);
+                
+                const binaryClass = info.isText ? '' : 'binary';
+                const binaryBadge = info.isText ? '' : '<span class="ext-badge binary-tag">binario</span>';
+                
+                html += `<div class="file-item ${binaryClass}">
+                    <span style="flex:1;">${info.isText ? '📄' : '🚫'} ${info.path} <span style="opacity:0.6; font-size:0.75rem;">(${sizeKB} KB)</span></span>
+                    <span class="ext-badge">${displayExt}</span>
+                    ${binaryBadge}
+                </div>`;
             }
             fileListContainer.innerHTML = html;
         }
 
-        // Eventos de archivo
+        // ----- Eventos de archivo -----
         fileInput.addEventListener('change', async (e) => {
             const file = fileInput.files[0];
             if (file) {
@@ -575,7 +575,7 @@
                 processBtn.disabled = true;
                 previewPanel.style.display = 'none';
                 currentZipFile = null;
-                allowedFilesList = [];
+                allFilesInfo = [];
             }
         });
 
@@ -600,7 +600,7 @@
             }
         });
 
-        // ----- Funciones de limpieza y procesamiento (sin cambios) -----
+        // ----- Funciones de limpieza (solo para tipos conocidos) -----
         function limpiarCodigo(texto, extension, fileName) {
             const ext = extension.toLowerCase();
             const nameLower = fileName.toLowerCase();
@@ -693,40 +693,30 @@
             const file = currentZipFile;
             if (!file) return;
             
-            statusDiv.innerHTML = `<span style="color:#93c5fd;">🔍 Leyendo archivo ZIP y procesando...</span>`;
+            statusDiv.innerHTML = `<span style="color:#93c5fd;">🔍 Procesando archivos de texto...</span>`;
             processBtn.disabled = true;
             
             try {
                 const zip = new JSZip();
                 const contents = await zip.loadAsync(file);
                 
-                const filePaths = [];
+                const allPaths = [];
                 const fileContents = [];
                 let fileCount = 0;
                 
-                const entries = Object.entries(contents.files);
-                let processed = 0;
-                const totalEntries = entries.length;
-                
-                for (const [path, zipEntry] of entries) {
-                    if (zipEntry.dir) continue;
+                // Usar textFilePaths que ya tenemos (los archivos de texto)
+                for (const path of textFilePaths) {
+                    const zipEntry = contents.files[path];
+                    if (!zipEntry || zipEntry.dir) continue;
                     
-                    const pathParts = path.split('/');
-                    if (pathParts.some(part => EXCLUDE_DIRS.has(part))) continue;
-                    
-                    const fileName = pathParts.pop() || '';
-                    const extDot = fileName.lastIndexOf('.');
-                    const extension = extDot >= 0 ? fileName.substring(extDot).toLowerCase() : '';
-                    
-                    if (!shouldProcessFile(path, fileName)) {
-                        filePaths.push(path);
-                        continue;
-                    }
-                    
-                    filePaths.push(path);
+                    allPaths.push(path);
                     
                     try {
-                        let text = await zipEntry.async("string");
+                        const text = await zipEntry.async("string");
+                        const fileName = path.split('/').pop() || '';
+                        const extDot = fileName.lastIndexOf('.');
+                        const extension = extDot >= 0 ? fileName.substring(extDot).toLowerCase() : '';
+                        
                         const cleaned = limpiarCodigo(text, extension, fileName);
                         
                         if (cleaned.trim().length > 0) {
@@ -737,17 +727,20 @@
                             });
                             fileCount++;
                         }
-                        processed++;
-                        if (processed % 15 === 0) {
-                            statusDiv.innerHTML = `<span>📄 Procesados ${processed} de ${totalEntries} entradas ...</span>`;
-                        }
                     } catch (e) {
-                        console.warn(`No se pudo leer como texto: ${path}`, e);
-                        statusDiv.innerHTML += `\n⚠️ Archivo binario o corrupto: ${path}`;
+                        console.warn(`Error procesando ${path}`, e);
                     }
                 }
                 
-                const treeVisual = buildTreeString(filePaths);
+                // Agregar también archivos binarios al árbol (pero no contenido)
+                for (const info of allFilesInfo) {
+                    if (!info.isText && !allPaths.includes(info.path)) {
+                        allPaths.push(info.path);
+                    }
+                }
+                allPaths.sort();
+                
+                const treeVisual = buildTreeString(allPaths);
                 
                 let codeBlock = "<documentos_codigo>\n";
                 for (let item of fileContents) {
@@ -763,8 +756,8 @@
                 
                 statusDiv.innerHTML = `
                     <span class="success-badge">✅ ¡Completado!</span><br>
-                    <span>📁 Archivos incluidos en árbol: ${filePaths.length}</span><br>
-                    <span>📄 Archivos con código procesado: ${fileCount}</span><br>
+                    <span>📁 Archivos en árbol: ${allPaths.length}</span><br>
+                    <span>📄 Archivos de texto procesados: ${fileCount}</span><br>
                     <span>📥 Descarga iniciada automáticamente.</span>
                 `;
                 
@@ -789,6 +782,33 @@
         }
         
         processBtn.addEventListener('click', processZip);
+
+        // ----- Panel informativo de extensiones (solo visual) -----
+        function renderExampleChips(filterText = '') {
+            const query = filterText.trim().toLowerCase();
+            let filtered = EXAMPLE_EXTENSIONS;
+            if (query !== '') {
+                filtered = EXAMPLE_EXTENSIONS.filter(ext => ext.toLowerCase().includes(query));
+            }
+            
+            formatsStats.textContent = query ? `${filtered.length} ejemplos` : 'Extensiones comunes';
+            
+            if (filtered.length === 0) {
+                chipsContainer.innerHTML = '<div class="no-files" style="width:100%;">Sin coincidencias</div>';
+                return;
+            }
+            
+            let html = '';
+            for (const ext of filtered) {
+                const isSpecial = ext.startsWith('.') ? false : true;
+                const chipClass = isSpecial ? 'chip special' : 'chip';
+                html += `<span class="${chipClass}">${ext}</span>`;
+            }
+            chipsContainer.innerHTML = html;
+        }
+
+        renderExampleChips('');
+        formatsSearchInput.addEventListener('input', (e) => renderExampleChips(e.target.value));
         
     })();
 </script>
