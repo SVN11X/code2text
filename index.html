@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code2Text · Dark Edition + Buscador</title>
+    <title>Code2Text · Dark Edition + Guía de formatos</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
@@ -30,9 +30,96 @@
             color: #a5f3fc;
         }
 
+        h3 {
+            font-weight: 500;
+            color: #b9d0e0;
+            margin: 1.2rem 0 0.8rem;
+        }
+
         p {
             color: #cbd5e1;
             margin-bottom: 1.5rem;
+        }
+
+        /* Panel de formatos admitidos */
+        .formats-panel {
+            background: #11161e;
+            border-radius: 20px;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #2d3a4a;
+        }
+
+        .formats-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .formats-search {
+            display: flex;
+            align-items: center;
+            background: #1e2532;
+            border-radius: 40px;
+            padding: 0.3rem 0.3rem 0.3rem 1rem;
+            border: 1px solid #3a4a5e;
+            flex: 2;
+            min-width: 220px;
+        }
+
+        .formats-search input {
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            padding: 0.5rem 0;
+            width: 100%;
+            outline: none;
+        }
+
+        .formats-search input::placeholder {
+            color: #7f8ea3;
+        }
+
+        .formats-stats {
+            font-size: 0.85rem;
+            background: #1e2a3a;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            color: #b9d0e0;
+        }
+
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+            padding: 5px 2px;
+        }
+
+        .chip {
+            background: #1e2a3a;
+            color: #cbd5e1;
+            padding: 0.2rem 1rem;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid #30445c;
+            transition: all 0.1s;
+        }
+
+        .chip.special {
+            background: #1f3a4b;
+            border-color: #2b7a8a;
+            color: #8cd4ff;
+        }
+
+        .chip:hover {
+            background: #2a3a50;
         }
 
         .dropzone {
@@ -121,7 +208,7 @@
             cursor: not-allowed;
         }
 
-        /* Panel de vista previa */
+        /* Panel de vista previa (archivos del zip) */
         .preview-panel {
             background: #11161e;
             border-radius: 20px;
@@ -150,11 +237,6 @@
             min-width: 220px;
         }
 
-        .search-box i {
-            opacity: 0.7;
-            margin-right: 6px;
-        }
-
         .search-box input {
             background: transparent;
             border: none;
@@ -163,10 +245,6 @@
             padding: 0.5rem 0;
             width: 100%;
             outline: none;
-        }
-
-        .search-box input::placeholder {
-            color: #7f8ea3;
         }
 
         .file-stats {
@@ -242,14 +320,20 @@
         }
 
         /* scrollbar */
-        .file-list::-webkit-scrollbar, #status::-webkit-scrollbar {
+        .chips-container::-webkit-scrollbar,
+        .file-list::-webkit-scrollbar, 
+        #status::-webkit-scrollbar {
             width: 6px;
         }
-        .file-list::-webkit-scrollbar-track, #status::-webkit-scrollbar-track {
+        .chips-container::-webkit-scrollbar-track,
+        .file-list::-webkit-scrollbar-track, 
+        #status::-webkit-scrollbar-track {
             background: #1e293b;
             border-radius: 8px;
         }
-        .file-list::-webkit-scrollbar-thumb, #status::-webkit-scrollbar-thumb {
+        .chips-container::-webkit-scrollbar-thumb,
+        .file-list::-webkit-scrollbar-thumb, 
+        #status::-webkit-scrollbar-thumb {
             background: #475569;
             border-radius: 8px;
         }
@@ -257,8 +341,22 @@
 </head>
 <body>
 
-<h2>🧠 Code2Text · Dark Mode + Buscador</h2>
-<p>Sube un archivo <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code>. Visualiza qué archivos se incluirán y luego genera el TXT optimizado.</p>
+<h2>🧠 Code2Text · Dark Mode + Guía de formatos</h2>
+<p>Consulta los formatos admitidos y luego sube un <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code> para generar un TXT optimizado.</p>
+
+<!-- NUEVA SECCIÓN: Formatos admitidos con buscador -->
+<div class="formats-panel">
+    <div class="formats-header">
+        <div class="formats-search">
+            <span style="margin-right:6px;">🔎</span>
+            <input type="text" id="formatsSearchInput" placeholder="Filtrar extensiones o nombres especiales..." autocomplete="off">
+        </div>
+        <div class="formats-stats" id="formatsStats">0 formatos</div>
+    </div>
+    <div id="chipsContainer" class="chips-container">
+        <!-- se llenará dinámicamente -->
+    </div>
+</div>
 
 <div class="dropzone">
     <label class="file-label" for="fileInput">
@@ -268,7 +366,7 @@
     <div id="fileNameDisplay" class="file-name">Ningún archivo seleccionado</div>
 </div>
 
-<!-- Panel de vista previa con buscador -->
+<!-- Panel de vista previa de archivos dentro del ZIP -->
 <div id="previewPanel" class="preview-panel" style="display: none;">
     <div class="search-header">
         <div class="search-box">
@@ -277,9 +375,7 @@
         </div>
         <div class="file-stats" id="fileStats">0 archivos</div>
     </div>
-    <div id="fileListContainer" class="file-list">
-        <!-- lista dinámica -->
-    </div>
+    <div id="fileListContainer" class="file-list"></div>
 </div>
 
 <div class="actions">
@@ -304,12 +400,17 @@
         const fileStats = document.getElementById('fileStats');
         const fileListContainer = document.getElementById('fileListContainer');
 
-        // ----- Estado global -----
-        let currentZipFile = null;                // El archivo File del zip
-        let allowedFilesList = [];                // Array de rutas (string) que cumplen criterios
-        let filteredFiles = [];                   // Subconjunto según búsqueda
+        // Formatos admitidos
+        const formatsSearchInput = document.getElementById('formatsSearchInput');
+        const formatsStats = document.getElementById('formatsStats');
+        const chipsContainer = document.getElementById('chipsContainer');
 
-        // ----- CONFIGURACIÓN -----
+        // ----- Estado global -----
+        let currentZipFile = null;
+        let allowedFilesList = [];
+        let filteredFiles = [];
+
+        // ----- CONFIGURACIÓN (igual que antes) -----
         const ALLOWED_EXTENSIONS = [
             ".py", ".pyw", ".ipynb", ".pyx", ".pxd", ".pxi",
             ".cpp", ".cc", ".cxx", ".c++", ".c", ".h", ".hpp", ".hxx", ".ino", ".pde",
@@ -331,6 +432,51 @@
             "__pycache__", ".git", ".venv", "venv", "env", ".env", "node_modules", 
             "z_code_file", "build", "dist", ".idea", ".vscode", "target", "out"
         ]);
+
+        // ----- Poblar chips de formatos admitidos -----
+        function buildFormatList() {
+            // Unificar extensiones y nombres especiales
+            const allFormats = [...ALLOWED_EXTENSIONS];
+            // Agregar nombres especiales que no estén ya en extensiones (ej: 'dockerfile' sin punto)
+            SPECIAL_FILENAMES.forEach(name => {
+                if (!allFormats.includes(name)) allFormats.push(name);
+            });
+            // Asegurar que 'dockerfile' aparezca como nombre especial
+            return allFormats.sort((a,b) => a.localeCompare(b));
+        }
+
+        const masterFormatList = buildFormatList();
+
+        function renderFormatChips(filterText = '') {
+            const query = filterText.trim().toLowerCase();
+            let filtered = masterFormatList;
+            if (query !== '') {
+                filtered = masterFormatList.filter(f => f.toLowerCase().includes(query));
+            }
+            
+            formatsStats.textContent = `${filtered.length} formato(s)`;
+            
+            if (filtered.length === 0) {
+                chipsContainer.innerHTML = '<div class="no-files" style="width:100%;">🔍 Ningún formato coincide</div>';
+                return;
+            }
+            
+            let html = '';
+            for (const fmt of filtered) {
+                const isSpecial = SPECIAL_FILENAMES.has(fmt.toLowerCase()) || fmt.toLowerCase() === 'dockerfile';
+                const chipClass = isSpecial ? 'chip special' : 'chip';
+                html += `<span class="${chipClass}">${fmt}</span>`;
+            }
+            chipsContainer.innerHTML = html;
+        }
+
+        // Inicializar chips al cargar
+        renderFormatChips();
+
+        // Filtrar chips al escribir
+        formatsSearchInput.addEventListener('input', (e) => {
+            renderFormatChips(e.target.value);
+        });
 
         // ----- Función para decidir si un archivo debe procesarse -----
         function shouldProcessFile(path, fileName) {
@@ -364,7 +510,6 @@
                     if (zipEntry.dir) continue;
                     
                     const pathParts = path.split('/');
-                    // Excluir directorios no deseados
                     if (pathParts.some(part => EXCLUDE_DIRS.has(part))) continue;
                     
                     const fileName = pathParts.pop() || '';
@@ -375,7 +520,6 @@
                 }
                 
                 allowedFilesList = tempAllowed.sort((a,b) => a.localeCompare(b));
-                // Aplicar filtro de búsqueda actual
                 filterAndRenderList();
                 
             } catch (err) {
@@ -386,7 +530,6 @@
             }
         }
 
-        // ----- Filtrar y renderizar lista -----
         function filterAndRenderList() {
             const query = searchInput.value.trim().toLowerCase();
             if (query === '') {
@@ -395,10 +538,8 @@
                 filteredFiles = allowedFilesList.filter(p => p.toLowerCase().includes(query));
             }
             
-            // Actualizar contador
             fileStats.textContent = `${filteredFiles.length} / ${allowedFilesList.length} archivos`;
             
-            // Renderizar elementos
             if (filteredFiles.length === 0) {
                 if (allowedFilesList.length === 0) {
                     fileListContainer.innerHTML = '<div class="no-files">📭 No se encontraron archivos permitidos en el ZIP.</div>';
@@ -419,15 +560,13 @@
             fileListContainer.innerHTML = html;
         }
 
-        // ----- Evento: selección de archivo -----
+        // Eventos de archivo
         fileInput.addEventListener('change', async (e) => {
             const file = fileInput.files[0];
             if (file) {
                 fileNameDisplay.textContent = `📦 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
                 processBtn.disabled = false;
                 currentZipFile = file;
-                
-                // Escanear y mostrar vista previa
                 await scanZipAndPreview(file);
             } else {
                 fileNameDisplay.textContent = 'Ningún archivo seleccionado';
@@ -438,12 +577,9 @@
             }
         });
 
-        // ----- Búsqueda en tiempo real -----
-        searchInput.addEventListener('input', () => {
-            filterAndRenderList();
-        });
+        searchInput.addEventListener('input', filterAndRenderList);
 
-        // ----- (Opcional) Drag & Drop manteniendo funcionalidad -----
+        // Drag & Drop
         const dropzone = document.querySelector('.dropzone');
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -462,7 +598,7 @@
             }
         });
 
-        // ----- Funciones de limpieza y procesamiento (igual que antes) -----
+        // ----- Funciones de limpieza y procesamiento (sin cambios) -----
         function limpiarCodigo(texto, extension, fileName) {
             const ext = extension.toLowerCase();
             const nameLower = fileName.toLowerCase();
