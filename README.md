@@ -2,7 +2,7 @@
 
 **Convierte cualquier proyecto comprimido en un único archivo de texto optimizado para LLMs.**
 
-[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-blue?logo=github)](https://svn11x.github.io/conversor_code/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-blue?logo=github)](https://svn11x.github.io/code2text/)
 
 ---
 
@@ -30,7 +30,7 @@ Ideal para compartir el contexto completo de un proyecto con un modelo de lengua
 
 Puedes probar la herramienta directamente desde GitHub Pages:
 
-👉 **👉 **[https://svn11x.github.io/conversor_code/](https://svn11x.github.io/conversor_code/)****  
+👉 **👉 **[https://svn11x.github.io/conversor_code/](https://svn11x.github.io/code2text/)****  
 
 ## 📥 Cómo usar
 
