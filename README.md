@@ -30,9 +30,7 @@ Ideal para compartir el contexto completo de un proyecto con un modelo de lengua
 
 Puedes probar la herramienta directamente desde GitHub Pages:
 
-👉 **[https://tuusuario.github.io/code2text](https://tuusuario.github.io/code2text)**  
-
-*(Reemplaza `tuusuario` por tu nombre de usuario de GitHub)*
+👉 **👉 **[https://svn11x.github.io/conversor_code/](https://svn11x.github.io/conversor_code/)****  
 
 ## 📥 Cómo usar
 
