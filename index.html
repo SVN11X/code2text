@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code2Text · Dark Edition</title>
+    <title>Code2Text · Dark Edition + Buscador</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
@@ -15,7 +15,7 @@
             background: #0b0f14;
             color: #e2e8f0;
             font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
-            max-width: 900px;
+            max-width: 1000px;
             margin: 2rem auto;
             padding: 0 1.5rem;
             line-height: 1.6;
@@ -39,7 +39,7 @@
             background: #1a1f2a;
             border: 2px dashed #3a4556;
             border-radius: 24px;
-            padding: 2.5rem 2rem;
+            padding: 2rem 2rem;
             text-align: center;
             transition: border 0.2s, background 0.2s;
             margin-bottom: 1.5rem;
@@ -66,11 +66,6 @@
         .file-label:hover {
             background: #3e526b;
             border-color: #7aa3b8;
-        }
-
-        .file-label i {
-            margin-right: 8px;
-            opacity: 0.9;
         }
 
         input[type="file"] {
@@ -126,18 +121,113 @@
             cursor: not-allowed;
         }
 
+        /* Panel de vista previa */
+        .preview-panel {
+            background: #11161e;
+            border-radius: 20px;
+            padding: 1.2rem 1.5rem;
+            margin: 1.5rem 0 0.5rem;
+            border: 1px solid #2d3a4a;
+        }
+
+        .search-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: #1e2532;
+            border-radius: 40px;
+            padding: 0.3rem 0.3rem 0.3rem 1rem;
+            border: 1px solid #3a4a5e;
+            flex: 2;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            opacity: 0.7;
+            margin-right: 6px;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            padding: 0.5rem 0;
+            width: 100%;
+            outline: none;
+        }
+
+        .search-box input::placeholder {
+            color: #7f8ea3;
+        }
+
+        .file-stats {
+            font-size: 0.85rem;
+            background: #1e2a3a;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            color: #b9d0e0;
+        }
+
+        .file-list {
+            max-height: 280px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+            font-size: 0.85rem;
+            margin-top: 0.8rem;
+            padding-right: 5px;
+        }
+
+        .file-item {
+            padding: 0.3rem 0.5rem;
+            border-bottom: 1px solid #253040;
+            color: #b9d0e0;
+            word-break: break-all;
+            display: flex;
+            align-items: baseline;
+        }
+
+        .file-item .ext-badge {
+            background: #1f3a4b;
+            padding: 0.1rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            margin-left: 10px;
+            color: #8cd4ff;
+            flex-shrink: 0;
+        }
+
+        .file-item:hover {
+            background: #1b2533;
+        }
+
+        .no-files {
+            color: #7f8ea3;
+            font-style: italic;
+            padding: 0.8rem;
+            text-align: center;
+        }
+
         #status {
             background: #11161e;
             border-radius: 20px;
             padding: 1.5rem;
-            margin-top: 2rem;
+            margin-top: 1.8rem;
             font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
             font-size: 0.9rem;
             white-space: pre-wrap;
             word-break: break-word;
             border: 1px solid #2d3a4a;
             color: #b9d0e0;
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
             box-shadow: inset 0 0 8px #00000033;
         }
@@ -151,19 +241,15 @@
             color: #6ee7b7;
         }
 
-        .tree-preview {
-            color: #a5d8ff;
-        }
-
         /* scrollbar */
-        #status::-webkit-scrollbar {
-            width: 8px;
+        .file-list::-webkit-scrollbar, #status::-webkit-scrollbar {
+            width: 6px;
         }
-        #status::-webkit-scrollbar-track {
+        .file-list::-webkit-scrollbar-track, #status::-webkit-scrollbar-track {
             background: #1e293b;
             border-radius: 8px;
         }
-        #status::-webkit-scrollbar-thumb {
+        .file-list::-webkit-scrollbar-thumb, #status::-webkit-scrollbar-thumb {
             background: #475569;
             border-radius: 8px;
         }
@@ -171,8 +257,8 @@
 </head>
 <body>
 
-<h2>🧠 Code2Text · Dark Mode</h2>
-<p>Sube un archivo <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code> con tu proyecto. Genera un único <code>.txt</code> optimizado para LLMs, con estructura de árbol y código limpio.</p>
+<h2>🧠 Code2Text · Dark Mode + Buscador</h2>
+<p>Sube un archivo <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code>. Visualiza qué archivos se incluirán y luego genera el TXT optimizado.</p>
 
 <div class="dropzone">
     <label class="file-label" for="fileInput">
@@ -180,6 +266,20 @@
     </label>
     <input type="file" id="fileInput" accept=".zip,application/zip">
     <div id="fileNameDisplay" class="file-name">Ningún archivo seleccionado</div>
+</div>
+
+<!-- Panel de vista previa con buscador -->
+<div id="previewPanel" class="preview-panel" style="display: none;">
+    <div class="search-header">
+        <div class="search-box">
+            <span style="margin-right:6px;">🔍</span>
+            <input type="text" id="searchInput" placeholder="Buscar por nombre o extensión..." autocomplete="off">
+        </div>
+        <div class="file-stats" id="fileStats">0 archivos</div>
+    </div>
+    <div id="fileListContainer" class="file-list">
+        <!-- lista dinámica -->
+    </div>
 </div>
 
 <div class="actions">
@@ -194,93 +294,182 @@
     (function(){
         "use strict";
 
-        // ----- elementos DOM -----
+        // ----- DOM -----
         const fileInput = document.getElementById('fileInput');
         const processBtn = document.getElementById('processBtn');
         const statusDiv = document.getElementById('status');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const previewPanel = document.getElementById('previewPanel');
+        const searchInput = document.getElementById('searchInput');
+        const fileStats = document.getElementById('fileStats');
+        const fileListContainer = document.getElementById('fileListContainer');
 
-        // ----- CONFIGURACIÓN MEJORADA -----
-        // Extensiones permitidas (más completas para capturar variedad de archivos de código y configuración)
+        // ----- Estado global -----
+        let currentZipFile = null;                // El archivo File del zip
+        let allowedFilesList = [];                // Array de rutas (string) que cumplen criterios
+        let filteredFiles = [];                   // Subconjunto según búsqueda
+
+        // ----- CONFIGURACIÓN -----
         const ALLOWED_EXTENSIONS = [
-            // Python / config
             ".py", ".pyw", ".ipynb", ".pyx", ".pxd", ".pxi",
-            // C / C++ / Arduino
             ".cpp", ".cc", ".cxx", ".c++", ".c", ".h", ".hpp", ".hxx", ".ino", ".pde",
-            // Web / JS / TS
             ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".jsonc", ".html", ".htm", ".css", ".scss", ".sass", ".less",
-            // XML / ROS / URDF / config
             ".xml", ".xacro", ".urdf", ".sdf", ".world", ".launch", ".yaml", ".yml", ".toml", ".cfg", ".conf", ".ini",
-            // Shell / scripting
             ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd",
-            // Documentación / texto
             ".txt", ".md", ".markdown", ".rst", ".tex",
-            // Otros lenguajes relevantes
             ".rs", ".go", ".java", ".kt", ".kts", ".swift", ".php", ".rb", ".lua", ".r", ".jl",
-            // ROS mensajes
             ".msg", ".srv", ".action",
-            // CMake / make
-            ".cmake", "CMakeLists.txt", ".mk",
-            // Docker / contenedores
-            "Dockerfile", ".dockerignore",
-            // Sin extensión pero archivos clave (se capturan por nombre, pero mejor si tienen extensión)
+            ".cmake", ".mk",
+            "dockerfile", ".dockerignore"
         ];
 
-        // Extensiones que siempre se tratan como texto aunque no estén en ALLOWED (agregamos nombres especiales)
         const SPECIAL_FILENAMES = new Set([
             "dockerfile", "makefile", "cmakelists.txt", "jenkinsfile", "vagrantfile", "gemfile", "rakefile", "procfile"
         ]);
 
-        // Directorios excluidos
         const EXCLUDE_DIRS = new Set([
             "__pycache__", ".git", ".venv", "venv", "env", ".env", "node_modules", 
             "z_code_file", "build", "dist", ".idea", ".vscode", "target", "out"
         ]);
 
-        // ----- utilidad: mostrar nombre archivo seleccionado -----
-        fileInput.addEventListener('change', (e) => {
-            const file = fileInput.files[0];
-            if (file) {
-                fileNameDisplay.textContent = `📦 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
-                processBtn.disabled = false;
-            } else {
-                fileNameDisplay.textContent = 'Ningún archivo seleccionado';
-                processBtn.disabled = true;
-            }
-        });
-
-        // ----- función para decidir si un archivo debe ser procesado (texto) -----
+        // ----- Función para decidir si un archivo debe procesarse -----
         function shouldProcessFile(path, fileName) {
             const lowerName = fileName.toLowerCase();
-            // Si es un archivo especial sin extensión (ej: Dockerfile)
             if (SPECIAL_FILENAMES.has(lowerName)) return true;
             
             const extDot = lowerName.lastIndexOf('.');
             const ext = extDot >= 0 ? lowerName.substring(extDot) : '';
             
-            // Extensiones permitidas
             if (ALLOWED_EXTENSIONS.includes(ext)) return true;
-            
-            // Caso: CMakeLists.txt (ya cubierto por .txt)
-            // Si es .txt o .md está en la lista, así que ok.
-            
-            // También podemos incluir algunos archivos sin extensión comunes
-            const base = lowerName;
-            if (base === 'dockerfile' || base === 'makefile' || base === 'jenkinsfile') return true;
+            if (lowerName === 'dockerfile' || lowerName === 'makefile' || lowerName === 'jenkinsfile') return true;
             
             return false;
         }
 
-        // ----- limpieza de comentarios (mejorada) -----
+        // ----- Escanear ZIP y actualizar vista previa -----
+        async function scanZipAndPreview(file) {
+            previewPanel.style.display = 'block';
+            fileListContainer.innerHTML = '<div class="no-files">🔎 Escaneando archivos...</div>';
+            fileStats.textContent = '0 archivos';
+            allowedFilesList = [];
+            
+            try {
+                const zip = new JSZip();
+                const contents = await zip.loadAsync(file);
+                const entries = Object.entries(contents.files);
+                
+                const tempAllowed = [];
+                
+                for (const [path, zipEntry] of entries) {
+                    if (zipEntry.dir) continue;
+                    
+                    const pathParts = path.split('/');
+                    // Excluir directorios no deseados
+                    if (pathParts.some(part => EXCLUDE_DIRS.has(part))) continue;
+                    
+                    const fileName = pathParts.pop() || '';
+                    
+                    if (shouldProcessFile(path, fileName)) {
+                        tempAllowed.push(path);
+                    }
+                }
+                
+                allowedFilesList = tempAllowed.sort((a,b) => a.localeCompare(b));
+                // Aplicar filtro de búsqueda actual
+                filterAndRenderList();
+                
+            } catch (err) {
+                console.error('Error al escanear zip:', err);
+                fileListContainer.innerHTML = `<div class="no-files error">Error al leer el ZIP: ${err.message}</div>`;
+                allowedFilesList = [];
+                filterAndRenderList();
+            }
+        }
+
+        // ----- Filtrar y renderizar lista -----
+        function filterAndRenderList() {
+            const query = searchInput.value.trim().toLowerCase();
+            if (query === '') {
+                filteredFiles = [...allowedFilesList];
+            } else {
+                filteredFiles = allowedFilesList.filter(p => p.toLowerCase().includes(query));
+            }
+            
+            // Actualizar contador
+            fileStats.textContent = `${filteredFiles.length} / ${allowedFilesList.length} archivos`;
+            
+            // Renderizar elementos
+            if (filteredFiles.length === 0) {
+                if (allowedFilesList.length === 0) {
+                    fileListContainer.innerHTML = '<div class="no-files">📭 No se encontraron archivos permitidos en el ZIP.</div>';
+                } else {
+                    fileListContainer.innerHTML = '<div class="no-files">🔍 Ningún archivo coincide con la búsqueda.</div>';
+                }
+                return;
+            }
+            
+            let html = '';
+            for (const path of filteredFiles) {
+                const fileName = path.split('/').pop() || path;
+                const extMatch = fileName.match(/\.([^.]+)$/);
+                const ext = extMatch ? '.' + extMatch[1].toLowerCase() : '';
+                const displayExt = ext || '(sin ext)';
+                html += `<div class="file-item"><span style="flex:1;">📄 ${path}</span><span class="ext-badge">${displayExt}</span></div>`;
+            }
+            fileListContainer.innerHTML = html;
+        }
+
+        // ----- Evento: selección de archivo -----
+        fileInput.addEventListener('change', async (e) => {
+            const file = fileInput.files[0];
+            if (file) {
+                fileNameDisplay.textContent = `📦 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+                processBtn.disabled = false;
+                currentZipFile = file;
+                
+                // Escanear y mostrar vista previa
+                await scanZipAndPreview(file);
+            } else {
+                fileNameDisplay.textContent = 'Ningún archivo seleccionado';
+                processBtn.disabled = true;
+                previewPanel.style.display = 'none';
+                currentZipFile = null;
+                allowedFilesList = [];
+            }
+        });
+
+        // ----- Búsqueda en tiempo real -----
+        searchInput.addEventListener('input', () => {
+            filterAndRenderList();
+        });
+
+        // ----- (Opcional) Drag & Drop manteniendo funcionalidad -----
+        const dropzone = document.querySelector('.dropzone');
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = '#5eead4';
+        });
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.style.borderColor = '#3a4556';
+        });
+        dropzone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = '#3a4556';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // ----- Funciones de limpieza y procesamiento (igual que antes) -----
         function limpiarCodigo(texto, extension, fileName) {
             const ext = extension.toLowerCase();
             const nameLower = fileName.toLowerCase();
             
-            // Guardamos shebang si existe (para scripts)
             const shebangMatch = texto.match(/^#!.*$/m);
             const shebang = shebangMatch ? shebangMatch[0] + '\n' : '';
             
-            // Eliminar comentarios según tipo
             if (ext === '.py' || ext === '.pyw' || ext === '.pyx' || nameLower.endsWith('.py')) {
                 texto = texto.replace(/^\s*#.*$/gm, '');
                 texto = texto.replace(/"{3}[\s\S]*?"{3}|'{3}[\s\S]*?'{3}/g, '');
@@ -301,9 +490,7 @@
                 texto = texto.replace(/(?<!\\)%.*$/gm, '');
             }
             
-            // Limpieza general: quitar espacios finales, reducir líneas vacías múltiples
             let lineas = texto.split('\n').map(l => l.trimEnd());
-            // Eliminar líneas completamente vacías consecutivas (dejar máximo 1 en blanco)
             const resultado = [];
             let prevEmpty = false;
             for (let line of lineas) {
@@ -314,16 +501,13 @@
             }
             
             let finalTexto = resultado.join('\n').trim();
-            // Restaurar shebang al inicio si corresponde y si no se eliminó
             if (shebang && !finalTexto.startsWith('#!')) {
                 finalTexto = shebang + finalTexto;
             }
             return finalTexto;
         }
 
-        // ----- construir árbol jerárquico (visual mejorado) -----
         function buildTreeString(paths) {
-            // paths: array de rutas relativas (separadas por '/')
             const tree = {};
             for (const p of paths) {
                 const parts = p.split('/');
@@ -335,7 +519,6 @@
                 }
             }
             
-            // Función recursiva para generar líneas con caracteres de árbol
             function renderTree(node, prefix = '', isLast = true, root = true) {
                 let lines = [];
                 const entries = Object.keys(node).sort();
@@ -368,12 +551,11 @@
             return renderTree(tree, '', true, true).join('\n');
         }
 
-        // ----- procesar ZIP -----
         async function processZip() {
-            const file = fileInput.files[0];
+            const file = currentZipFile;
             if (!file) return;
             
-            statusDiv.innerHTML = `<span style="color:#93c5fd;">🔍 Leyendo archivo ZIP ...</span>`;
+            statusDiv.innerHTML = `<span style="color:#93c5fd;">🔍 Leyendo archivo ZIP y procesando...</span>`;
             processBtn.disabled = true;
             
             try {
@@ -384,7 +566,6 @@
                 const fileContents = [];
                 let fileCount = 0;
                 
-                // Primera pasada: recolectar rutas y procesar contenido
                 const entries = Object.entries(contents.files);
                 let processed = 0;
                 const totalEntries = entries.length;
@@ -392,7 +573,6 @@
                 for (const [path, zipEntry] of entries) {
                     if (zipEntry.dir) continue;
                     
-                    // Excluir directorios no deseados
                     const pathParts = path.split('/');
                     if (pathParts.some(part => EXCLUDE_DIRS.has(part))) continue;
                     
@@ -400,9 +580,7 @@
                     const extDot = fileName.lastIndexOf('.');
                     const extension = extDot >= 0 ? fileName.substring(extDot).toLowerCase() : '';
                     
-                    // Decidir si procesar
                     if (!shouldProcessFile(path, fileName)) {
-                        // Aún así lo incluimos en el árbol visual
                         filePaths.push(path);
                         continue;
                     }
@@ -410,7 +588,6 @@
                     filePaths.push(path);
                     
                     try {
-                        // Intentar leer como texto
                         let text = await zipEntry.async("string");
                         const cleaned = limpiarCodigo(text, extension, fileName);
                         
@@ -423,7 +600,6 @@
                             fileCount++;
                         }
                         processed++;
-                        // Actualizar estado cada 10 archivos
                         if (processed % 15 === 0) {
                             statusDiv.innerHTML = `<span>📄 Procesados ${processed} de ${totalEntries} entradas ...</span>`;
                         }
@@ -433,10 +609,8 @@
                     }
                 }
                 
-                // Construir árbol jerárquico
                 const treeVisual = buildTreeString(filePaths);
                 
-                // Construir bloque de código
                 let codeBlock = "<documentos_codigo>\n";
                 for (let item of fileContents) {
                     codeBlock += `  <archivo ruta="${item.path}" tipo="${item.ext}">\n`;
@@ -447,7 +621,6 @@
                 
                 const finalOutput = `<estructura_proyecto>\n${treeVisual}\n</estructura_proyecto>\n\n${codeBlock}`;
                 
-                // Descargar
                 downloadFile(finalOutput, `code2text_${file.name.replace(/\.zip$/i,'')}_${new Date().toISOString().slice(0,10)}.txt`);
                 
                 statusDiv.innerHTML = `
@@ -478,26 +651,6 @@
         }
         
         processBtn.addEventListener('click', processZip);
-        
-        // Inicialización: si se arrastra archivo también (opcional)
-        const dropzone = document.querySelector('.dropzone');
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.style.borderColor = '#5eead4';
-        });
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.style.borderColor = '#3a4556';
-        });
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.style.borderColor = '#3a4556';
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                // Disparar evento change manualmente
-                fileInput.dispatchEvent(new Event('change'));
-            }
-        });
         
     })();
 </script>
