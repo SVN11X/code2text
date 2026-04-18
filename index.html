@@ -41,12 +41,12 @@
             margin-bottom: 1.5rem;
         }
 
-        /* Panel de formatos admitidos */
+        /* Panel de formatos admitidos (ahora al fondo) */
         .formats-panel {
             background: #11161e;
             border-radius: 20px;
             padding: 1.2rem 1.5rem;
-            margin-bottom: 2rem;
+            margin: 2rem 0 1rem;
             border: 1px solid #2d3a4a;
         }
 
@@ -342,21 +342,7 @@
 <body>
 
 <h2>🧠 Code2Text · Dark Mode + Guía de formatos</h2>
-<p>Consulta los formatos admitidos y luego sube un <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code> para generar un TXT optimizado.</p>
-
-<!-- NUEVA SECCIÓN: Formatos admitidos con buscador -->
-<div class="formats-panel">
-    <div class="formats-header">
-        <div class="formats-search">
-            <span style="margin-right:6px;">🔎</span>
-            <input type="text" id="formatsSearchInput" placeholder="Filtrar extensiones o nombres especiales..." autocomplete="off">
-        </div>
-        <div class="formats-stats" id="formatsStats">0 formatos</div>
-    </div>
-    <div id="chipsContainer" class="chips-container">
-        <!-- se llenará dinámicamente -->
-    </div>
-</div>
+<p>Sube un archivo <code style="background:#1e2a3a; padding:2px 8px; border-radius:20px;">.zip</code>. Visualiza qué archivos se incluirán y luego genera el TXT optimizado.</p>
 
 <div class="dropzone">
     <label class="file-label" for="fileInput">
@@ -386,6 +372,20 @@
     <span style="opacity:0.7;">✨ Listo para procesar...</span>
 </div>
 
+<!-- Panel de formatos admitidos (AHORA AL FONDO DE TODO) -->
+<div class="formats-panel">
+    <div class="formats-header">
+        <div class="formats-search">
+            <span style="margin-right:6px;">🔎</span>
+            <input type="text" id="formatsSearchInput" placeholder="Filtrar extensiones o nombres especiales..." autocomplete="off">
+        </div>
+        <div class="formats-stats" id="formatsStats">0 formatos</div>
+    </div>
+    <div id="chipsContainer" class="chips-container">
+        <!-- se llenará dinámicamente (vacío inicial con mensaje) -->
+    </div>
+</div>
+
 <script>
     (function(){
         "use strict";
@@ -410,7 +410,7 @@
         let allowedFilesList = [];
         let filteredFiles = [];
 
-        // ----- CONFIGURACIÓN (igual que antes) -----
+        // ----- CONFIGURACIÓN -----
         const ALLOWED_EXTENSIONS = [
             ".py", ".pyw", ".ipynb", ".pyx", ".pxd", ".pxi",
             ".cpp", ".cc", ".cxx", ".c++", ".c", ".h", ".hpp", ".hxx", ".ino", ".pde",
@@ -433,28 +433,30 @@
             "z_code_file", "build", "dist", ".idea", ".vscode", "target", "out"
         ]);
 
-        // ----- Poblar chips de formatos admitidos -----
+        // ----- Poblar chips de formatos admitidos (comportamiento corregido) -----
         function buildFormatList() {
-            // Unificar extensiones y nombres especiales
             const allFormats = [...ALLOWED_EXTENSIONS];
-            // Agregar nombres especiales que no estén ya en extensiones (ej: 'dockerfile' sin punto)
             SPECIAL_FILENAMES.forEach(name => {
                 if (!allFormats.includes(name)) allFormats.push(name);
             });
-            // Asegurar que 'dockerfile' aparezca como nombre especial
             return allFormats.sort((a,b) => a.localeCompare(b));
         }
 
         const masterFormatList = buildFormatList();
+        const TOTAL_FORMATS = masterFormatList.length;
 
         function renderFormatChips(filterText = '') {
             const query = filterText.trim().toLowerCase();
-            let filtered = masterFormatList;
-            if (query !== '') {
-                filtered = masterFormatList.filter(f => f.toLowerCase().includes(query));
+            
+            // Si el campo está vacío: mostrar mensaje y el total de formatos
+            if (query === '') {
+                chipsContainer.innerHTML = '<div class="no-files" style="width:100%;">✏️ Escribe para buscar entre los formatos admitidos...</div>';
+                formatsStats.textContent = `${TOTAL_FORMATS} formatos`;
+                return;
             }
             
-            formatsStats.textContent = `${filtered.length} formato(s)`;
+            const filtered = masterFormatList.filter(f => f.toLowerCase().includes(query));
+            formatsStats.textContent = `${filtered.length} / ${TOTAL_FORMATS} formatos`;
             
             if (filtered.length === 0) {
                 chipsContainer.innerHTML = '<div class="no-files" style="width:100%;">🔍 Ningún formato coincide</div>';
@@ -470,8 +472,8 @@
             chipsContainer.innerHTML = html;
         }
 
-        // Inicializar chips al cargar
-        renderFormatChips();
+        // Inicializar chips con mensaje y total
+        renderFormatChips('');
 
         // Filtrar chips al escribir
         formatsSearchInput.addEventListener('input', (e) => {
