@@ -1,12 +1,8 @@
-Aquí tienes un `README.md` completo para tu proyecto **code2text**, listo para usar en tu repositorio de GitHub y compatible con GitHub Pages.
-
-```markdown
 # 🧠 Code2Text
 
 **Convierte cualquier proyecto comprimido en un único archivo de texto optimizado para LLMs.**
 
-[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-blue?logo=github)](https://tuusuario.github.io/code2text)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-blue?logo=github)](https://svn11x.github.io/conversor_code/)
 
 ---
 
